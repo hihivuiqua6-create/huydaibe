@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import time
 import threading
 import sys
+from flask import Flask, render_template, request, send_file, jsonify, redirect, url_for
 
 # ===== CẤU HÌNH =====
 BOT_TOKEN = "8990113148:AAH1wgUusu_Z3AW2JNF4JwivXAvCDOFLO8U"
@@ -23,6 +24,9 @@ ACCOUNT_NAME = "NGUYEN VAN GIA HUY"
 # File lưu dữ liệu
 USERS_FILE = "users.json"
 ORDERS_FILE = "orders.json"
+
+# ===== KHỞI TẠO FLASK =====
+app = Flask(__name__)
 
 # ===== API ENDPOINTS =====
 API_BASE = "https://carter-learned-locked-stadium.trycloudflare.com/api"
@@ -347,74 +351,7 @@ def stop_auto(user_id):
         auto_tasks[user_id].set()
         # Không cần xóa ngay, worker sẽ xóa
 
-# ===== ADMIN COMMANDS =====
-@bot.message_handler(commands=['exportdata'])
-def handle_export_data(message):
-    user_id = message.from_user.id
-    if user_id not in ADMIN_IDS:
-        bot.reply_to(message, "**Bạn không có quyền sử dụng lệnh này.**", parse_mode="Markdown")
-        return
-    
-    filename = export_all_data()
-    with open(filename, "rb") as f:
-        bot.send_document(message.chat.id, f, caption=f"📦 Dữ liệu backup ngày {get_vietnam_time().strftime('%Y-%m-%d %H:%M:%S')}")
-
-@bot.message_handler(commands=['importdata'])
-def handle_import_data(message):
-    user_id = message.from_user.id
-    if user_id not in ADMIN_IDS:
-        bot.reply_to(message, "**Bạn không có quyền sử dụng lệnh này.**", parse_mode="Markdown")
-        return
-    
-    if not message.reply_to_message or not message.reply_to_message.document:
-        bot.reply_to(message, "**Vui lòng reply file JSON backup với lệnh /importdata**", parse_mode="Markdown")
-        return
-    
-    try:
-        file_info = bot.get_file(message.reply_to_message.document.file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
-        
-        # Lưu file tạm
-        temp_file = "temp_import.json"
-        with open(temp_file, "wb") as f:
-            f.write(downloaded_file)
-        
-        if import_all_data(temp_file):
-            bot.reply_to(message, "✅ **Import dữ liệu thành công!**", parse_mode="Markdown")
-        else:
-            bot.reply_to(message, "❌ **Import dữ liệu thất bại!**", parse_mode="Markdown")
-        
-        os.remove(temp_file)
-    except Exception as e:
-        bot.reply_to(message, f"❌ **Lỗi: {str(e)}**", parse_mode="Markdown")
-
-@bot.message_handler(commands=['viewdata'])
-def handle_view_data(message):
-    user_id = message.from_user.id
-    if user_id not in ADMIN_IDS:
-        bot.reply_to(message, "**Bạn không có quyền sử dụng lệnh này.**", parse_mode="Markdown")
-        return
-    
-    users = load_json(USERS_FILE, {})
-    orders = load_json(ORDERS_FILE, {})
-    
-    total_users = len(users)
-    total_orders = len(orders)
-    pending_orders = len([o for o in orders.values() if o.get("status") == "pending_approval"])
-    total_balance = sum(u.get("balance", 0) for u in users.values())
-    
-    msg = f"""📊 **THỐNG KÊ DỮ LIỆU**
-========================
-👤 Tổng người dùng: {total_users}
-📦 Tổng đơn hàng: {total_orders}
-⏳ Đơn chờ duyệt: {pending_orders}
-💰 Tổng số dư: {total_balance:,} VND
-========================
-📅 {get_vietnam_time().strftime('%Y-%m-%d %H:%M:%S')}"""
-    
-    bot.reply_to(message, msg, parse_mode="Markdown")
-
-# ===== XỬ LÝ LỆNH /start =====
+# ===== XỬ LÝ LỆNH BOT =====
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     user_id = message.from_user.id
@@ -590,23 +527,6 @@ Bạn có thể sử dụng Tool ngay bây giờ!"""
             bot.send_message(call.message.chat.id, text, reply_markup=markup)
         else:
             bot.answer_callback_query(call.id, "Bạn chưa có Key hoặc Key đã hết hạn!", show_alert=True)
-            tool_list = """👇 𝗖𝗵𝗼̣𝗻 𝗧𝗼𝗼𝗹 𝗖𝗮̂̀𝗻 𝗗𝘂̀𝗻𝗴:
-
-☀️ 𝗦𝘂𝗻𝗪𝗶𝗻 — TX
-🔱 𝗠𝗮𝘅𝟳𝟴𝟵 — TX, MD5
-🎯 𝗛𝗶𝘁𝗖𝗹𝘂𝗯 — TX, MD5
-💣 𝗕𝟱𝟮 — TX, MD5
-💎 𝗕𝗲𝘁𝗩𝗶𝗽 — TX, MD5
-🦀 𝗟𝗖𝟳𝟵 — TX, MD5
-🌟 𝗦𝘂𝗺𝗖𝗹𝘂𝗯 — TX, MD5
-🎪 𝗫𝗼𝗰𝗗𝗶𝗮𝟴𝟴 — TX, MD5
-🍀 𝗛𝗮𝘆𝗪𝗶𝗻 — TX, MD5
-🍒 𝟳𝟴𝟵𝗖𝗹𝘂𝗯 — TX
-🍀 𝗟𝘂𝗰𝗸𝟴 — TX, MD5
-🌟 𝗦𝗼𝗻𝟳𝟴𝟵 — TX
-
-⚠️ 𝗕𝗮̣𝗻 𝗰𝗵𝘂̛𝗮 𝗰𝗼́ 𝗞𝗲𝘆! 𝗩𝘂𝗶 𝗹𝗼̀𝗻𝗴 𝗺𝘂𝗮 𝗞𝗲𝘆 đ𝗲̂̉ 𝘀𝘂̛̉ 𝗱𝘂̣𝗻𝗴."""
-            bot.send_message(call.message.chat.id, tool_list)
 
     elif data.startswith("tool_"):
         users, user_data = get_user_data(user_id)
@@ -666,6 +586,22 @@ Bạn có thể sử dụng Tool ngay bây giờ!"""
             bot.send_message(call.message.chat.id, "**- VUI LÒNG GỬI BIÊN LAI BẠN ĐÃ CHUYỂN KHOẢN ĐỂ CHÚNG TÔI DUYỆT NHANH NHẤT**", parse_mode="Markdown")
         else:
             bot.answer_callback_query(call.id, "Đơn nạp không hợp lệ hoặc đã xử lý", show_alert=True)
+
+    elif data.startswith("admin_duyet_"):
+        # Xử lý duyệt đơn từ nút bấm
+        order_id = data.replace("admin_duyet_", "")
+        process_duyet_order(call.message.chat.id, order_id, call.id)
+
+    elif data.startswith("admin_huy_"):
+        # Xử lý hủy đơn từ nút bấm
+        order_id = data.replace("admin_huy_", "")
+        orders = get_orders()
+        if order_id in orders:
+            orders[order_id]["status"] = "cancelled"
+            orders[order_id]["cancel_time"] = get_vietnam_time().strftime("%Y-%m-%d %H:%M:%S")
+            save_orders(orders)
+            bot.answer_callback_query(call.id, f"✅ Đã hủy đơn #{order_id}", show_alert=True)
+            bot.send_message(call.message.chat.id, f"❌ **Đã hủy đơn #{order_id}**", parse_mode="Markdown")
 
 # ===== XỬ LÝ TIN NHẮN VĂN BẢN =====
 @bot.message_handler(content_types=['text'])
@@ -743,7 +679,7 @@ Nội dung chuyển khoản: {order_id}"""
 
     bot.reply_to(message, "Bạn hãy dùng /start để bắt đầu.")
 
-# ===== XỬ LÝ ẢNH (BIÊN LAI) - ĐÃ SỬA LỖI =====
+# ===== XỬ LÝ ẢNH (BIÊN LAI) =====
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     user_id = message.from_user.id
@@ -854,33 +790,6 @@ def handle_photo(message):
     # Xóa state của user
     user_states.pop(user_id, None)
 
-# ===== XỬ LÝ CALLBACK DUYỆT ĐƠN TỪ ADMIN =====
-@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_duyet_"))
-def handle_admin_duyet_callback(call):
-    user_id = call.from_user.id
-    if user_id not in ADMIN_IDS:
-        bot.answer_callback_query(call.id, "❌ Bạn không có quyền duyệt đơn!", show_alert=True)
-        return
-    
-    order_id = call.data.replace("admin_duyet_", "")
-    process_duyet_order(call.message.chat.id, order_id, call.id)
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_huy_"))
-def handle_admin_huy_callback(call):
-    user_id = call.from_user.id
-    if user_id not in ADMIN_IDS:
-        bot.answer_callback_query(call.id, "❌ Bạn không có quyền hủy đơn!", show_alert=True)
-        return
-    
-    order_id = call.data.replace("admin_huy_", "")
-    orders = get_orders()
-    if order_id in orders:
-        orders[order_id]["status"] = "cancelled"
-        orders[order_id]["cancel_time"] = get_vietnam_time().strftime("%Y-%m-%d %H:%M:%S")
-        save_orders(orders)
-        bot.answer_callback_query(call.id, f"✅ Đã hủy đơn #{order_id}", show_alert=True)
-        bot.send_message(call.message.chat.id, f"❌ **Đã hủy đơn #{order_id}**", parse_mode="Markdown")
-
 def process_duyet_order(chat_id, order_id, callback_id=None):
     """Xử lý duyệt đơn"""
     orders = get_orders()
@@ -956,15 +865,105 @@ def handle_admin_duyet(message):
 
     process_duyet_order(message.chat.id, order_id_input)
 
-# ===== CHẠY BOT =====
-if __name__ == "__main__":
+# ===== WEB ROUTES =====
+@app.route('/')
+def index():
+    """Trang chủ quản lý"""
+    users = load_json(USERS_FILE, {})
+    orders = get_orders()
+    
+    total_users = len(users)
+    total_orders = len(orders)
+    pending_orders = len([o for o in orders.values() if o.get("status") == "pending_approval"])
+    total_balance = sum(u.get("balance", 0) for u in users.values())
+    
+    return render_template('index.html', 
+                         total_users=total_users,
+                         total_orders=total_orders,
+                         pending_orders=pending_orders,
+                         total_balance=total_balance,
+                         users=users,
+                         orders=orders)
+
+@app.route('/export')
+def export_data():
+    """Export dữ liệu"""
+    try:
+        filename = export_all_data()
+        return send_file(filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/import', methods=['POST'])
+def import_data():
+    """Import dữ liệu từ file JSON"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "Không có file nào được tải lên"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "Chưa chọn file"}), 400
+        
+        if not file.filename.endswith('.json'):
+            return jsonify({"error": "File phải có định dạng .json"}), 400
+        
+        # Lưu file tạm
+        temp_file = f"temp_import_{int(time.time())}.json"
+        file.save(temp_file)
+        
+        success = import_all_data(temp_file)
+        os.remove(temp_file)
+        
+        if success:
+            return jsonify({"success": True, "message": "Import dữ liệu thành công!"})
+        else:
+            return jsonify({"error": "Import dữ liệu thất bại!"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/delete_order/<order_id>', methods=['POST'])
+def delete_order(order_id):
+    """Xóa đơn hàng"""
+    try:
+        orders = get_orders()
+        if order_id in orders:
+            del orders[order_id]
+            save_orders(orders)
+            return jsonify({"success": True, "message": "Đã xóa đơn hàng"})
+        return jsonify({"error": "Không tìm thấy đơn hàng"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/reset_data', methods=['POST'])
+def reset_data():
+    """Reset toàn bộ dữ liệu"""
+    try:
+        # Backup trước khi reset
+        export_all_data()
+        
+        # Reset users
+        save_json(USERS_FILE, {})
+        save_json(ORDERS_FILE, {})
+        
+        return jsonify({"success": True, "message": "Đã reset toàn bộ dữ liệu!"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ===== CHẠY BOT VÀ WEB CÙNG LÚC =====
+def run_bot():
+    """Chạy bot trong thread riêng"""
     print("🚀 Bot đang chạy...")
-    print("📋 Commands:")
+    try:
+        bot.infinity_polling(skip_pending=True)
+    except Exception as e:
+        print(f"❌ Lỗi bot: {e}")
+
+if __name__ == "__main__":
+    print("🚀 Khởi động ToolGameTX 247...")
+    print("📋 Bot Commands:")
     print("  /start     - Bắt đầu sử dụng")
     print("  /duyet     - Duyệt đơn nạp (Admin)")
-    print("  /exportdata - Export all data (Admin)")
-    print("  /importdata - Import data from JSON file (Admin)")
-    print("  /viewdata   - View statistics (Admin)")
     
     # Khởi tạo file rỗng nếu chưa có
     if not os.path.exists(USERS_FILE):
@@ -974,10 +973,12 @@ if __name__ == "__main__":
         save_json(ORDERS_FILE, {})
         print(f"✅ Đã tạo file {ORDERS_FILE}")
     
-    print("✅ Bot sẵn sàng hoạt động!")
     print(f"👥 Admin IDs: {ADMIN_IDS}")
+    print("🌐 Web interface: http://0.0.0.0:10000")
     
-    try:
-        bot.infinity_polling(skip_pending=True)
-    except Exception as e:
-        print(f"❌ Lỗi bot: {e}")
+    # Chạy bot trong thread riêng
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    
+    # Chạy web server
+    app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False)
