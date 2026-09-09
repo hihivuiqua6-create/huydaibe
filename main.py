@@ -13,7 +13,7 @@ import sys
 
 # ===== CẤU HÌNH =====
 BOT_TOKEN = "8990113148:AAH1wgUusu_Z3AW2JNF4JwivXAvCDOFLO8U"
-ADMIN_IDS = [8363711905, 8030294480]  # Hai admin
+ADMIN_IDS = [8363711905, 8030294480]  # Hai admin - NHỚ SET ĐÚNG ID CỦA BẠN
 
 # Thông tin ngân hàng MB Bank
 BANK_ID = "970422"
@@ -743,7 +743,7 @@ Nội dung chuyển khoản: {order_id}"""
 
     bot.reply_to(message, "Bạn hãy dùng /start để bắt đầu.")
 
-# ===== XỬ LÝ ẢNH (BIÊN LAI) - ĐÃ SỬA =====
+# ===== XỬ LÝ ẢNH (BIÊN LAI) - ĐÃ SỬA LỖI =====
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     user_id = message.from_user.id
@@ -751,66 +751,79 @@ def handle_photo(message):
     print(f"📸 Nhận ảnh từ user {user_id}")  # Debug
 
     # Kiểm tra user có đang ở state waiting_for_receipt không
-    if user_id in user_states and user_states[user_id].get("state") == "waiting_for_receipt":
-        state_info = user_states[user_id]
-        order_id = state_info.get("order_id")
-        
-        print(f"📦 Order ID: {order_id}")  # Debug
-        
-        if not order_id:
-            user_states.pop(user_id, None)
-            bot.reply_to(message, "**❌ Không tìm thấy đơn nạp. Vui lòng tạo đơn mới.**", parse_mode="Markdown")
-            return
-        
-        orders = get_orders()
-        
-        # Kiểm tra đơn hàng tồn tại và đúng user
-        if order_id not in orders:
-            user_states.pop(user_id, None)
-            bot.reply_to(message, "**❌ Không tìm thấy đơn nạp. Vui lòng tạo đơn mới.**", parse_mode="Markdown")
-            return
-        
-        if orders[order_id]["user_id"] != user_id:
-            user_states.pop(user_id, None)
-            bot.reply_to(message, "**❌ Đơn nạp không thuộc về bạn.**", parse_mode="Markdown")
-            return
-        
-        # Kiểm tra trạng thái đơn hàng
-        if orders[order_id]["status"] != "awaiting_receipt":
-            status_text = {
-                "created": "chờ xác nhận",
-                "pending_approval": "đang chờ duyệt",
-                "approved": "đã duyệt",
-                "cancelled": "đã hủy"
-            }.get(orders[order_id]["status"], orders[order_id]["status"])
-            
-            bot.reply_to(message, f"**❌ Đơn nạp đã ở trạng thái: {status_text}**", parse_mode="Markdown")
-            user_states.pop(user_id, None)
-            return
+    if user_id not in user_states:
+        bot.reply_to(message, "**❌ Bạn không có đơn nạp nào đang chờ biên lai.\nVui lòng tạo đơn nạp mới bằng /start**", parse_mode="Markdown")
+        return
+    
+    if user_states[user_id].get("state") != "waiting_for_receipt":
+        bot.reply_to(message, "**❌ Bạn không có đơn nạp nào đang chờ biên lai.\nVui lòng tạo đơn nạp mới bằng /start**", parse_mode="Markdown")
+        return
 
-        # Lấy file_id của ảnh (lấy ảnh chất lượng cao nhất)
-        file_id = message.photo[-1].file_id
+    state_info = user_states[user_id]
+    order_id = state_info.get("order_id")
+    
+    print(f"📦 Order ID: {order_id}")  # Debug
+    
+    if not order_id:
+        user_states.pop(user_id, None)
+        bot.reply_to(message, "**❌ Không tìm thấy đơn nạp. Vui lòng tạo đơn mới.**", parse_mode="Markdown")
+        return
+    
+    orders = get_orders()
+    
+    # Kiểm tra đơn hàng tồn tại và đúng user
+    if order_id not in orders:
+        user_states.pop(user_id, None)
+        bot.reply_to(message, "**❌ Không tìm thấy đơn nạp. Vui lòng tạo đơn mới.**", parse_mode="Markdown")
+        return
+    
+    if orders[order_id]["user_id"] != user_id:
+        user_states.pop(user_id, None)
+        bot.reply_to(message, "**❌ Đơn nạp không thuộc về bạn.**", parse_mode="Markdown")
+        return
+    
+    # Kiểm tra trạng thái đơn hàng
+    if orders[order_id]["status"] != "awaiting_receipt":
+        status_text = {
+            "created": "chờ xác nhận",
+            "pending_approval": "đang chờ duyệt",
+            "approved": "đã duyệt",
+            "cancelled": "đã hủy"
+        }.get(orders[order_id]["status"], orders[order_id]["status"])
         
-        # Lưu receipt_file_id vào order
-        orders[order_id]["receipt_file_id"] = file_id
-        orders[order_id]["status"] = "pending_approval"
-        orders[order_id]["receipt_time"] = get_vietnam_time().strftime("%Y-%m-%d %H:%M:%S")
-        save_orders(orders)
+        bot.reply_to(message, f"**❌ Đơn nạp đã ở trạng thái: {status_text}**", parse_mode="Markdown")
+        user_states.pop(user_id, None)
+        return
 
-        # Thông báo cho user
-        bot.reply_to(message, "**✅ Đã nhận biên lai. Đơn nạp đang chờ admin duyệt (1-5 phút).**", parse_mode="Markdown")
+    # Lấy file_id của ảnh (lấy ảnh chất lượng cao nhất)
+    file_id = message.photo[-1].file_id
+    
+    # Lưu receipt_file_id vào order
+    orders[order_id]["receipt_file_id"] = file_id
+    orders[order_id]["status"] = "pending_approval"
+    orders[order_id]["receipt_time"] = get_vietnam_time().strftime("%Y-%m-%d %H:%M:%S")
+    save_orders(orders)
 
-        # Lấy thông tin user để gửi cho admin
-        try:
-            user_info = bot.get_chat(user_id)
-            fullname = user_info.full_name or "Không có tên"
-            username = user_info.username or "Không có"
-        except:
-            fullname = "Không có tên"
-            username = "Không có"
+    # Thông báo cho user
+    bot.reply_to(message, "**✅ Đã nhận biên lai. Đơn nạp đang chờ admin duyệt.**", parse_mode="Markdown")
 
-        # Gửi thông báo cho tất cả admin
-        admin_caption = f"""📥 **ĐƠN NẠP MỚI CẦN DUYỆT**
+    # Lấy thông tin user để gửi cho admin
+    try:
+        user_info = bot.get_chat(user_id)
+        fullname = user_info.full_name or "Không có tên"
+        username = user_info.username or "Không có"
+    except:
+        fullname = "Không có tên"
+        username = "Không có"
+
+    # Tạo nút duyệt nhanh cho admin
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    btn_duyet = types.InlineKeyboardButton("✅ Duyệt đơn", callback_data=f"admin_duyet_{order_id}")
+    btn_huy = types.InlineKeyboardButton("❌ Hủy đơn", callback_data=f"admin_huy_{order_id}")
+    markup.add(btn_duyet, btn_huy)
+
+    # Gửi thông báo cho tất cả admin
+    admin_caption = f"""📥 **ĐƠN NẠP MỚI CẦN DUYỆT**
 ========================
 🔢 Mã đơn: #{order_id}
 👤 Người nạp: {fullname}
@@ -820,51 +833,63 @@ def handle_photo(message):
 📅 Thời gian: {orders[order_id]['created_at']}
 ⏰ Gửi biên lai: {orders[order_id]['receipt_time']}
 ========================
-✅ Duyệt bằng lệnh: `/duyet {order_id}`"""
+✅ Duyệt bằng lệnh: `/duyet {order_id}`
+📌 Hoặc ấn nút bên dưới"""
 
-        # Gửi ảnh và thông báo cho từng admin
-        for admin_id in ADMIN_IDS:
-            try:
-                # Gửi ảnh biên lai
-                bot.send_photo(
-                    admin_id, 
-                    file_id, 
-                    caption=admin_caption,
-                    parse_mode="Markdown"
-                )
-                print(f"✅ Đã gửi thông báo cho admin {admin_id}")  # Debug
-            except Exception as e:
-                print(f"❌ Lỗi gửi cho admin {admin_id}: {e}")
+    # Gửi ảnh và thông báo cho từng admin
+    for admin_id in ADMIN_IDS:
+        try:
+            # Gửi ảnh biên lai kèm nút duyệt
+            bot.send_photo(
+                admin_id, 
+                file_id, 
+                caption=admin_caption,
+                parse_mode="Markdown",
+                reply_markup=markup
+            )
+            print(f"✅ Đã gửi thông báo cho admin {admin_id}")  # Debug
+        except Exception as e:
+            print(f"❌ Lỗi gửi cho admin {admin_id}: {e}")
 
-        # Xóa state của user
-        user_states.pop(user_id, None)
-        
-    else:
-        bot.reply_to(message, "**❌ Bạn không có đơn nạp nào đang chờ biên lai.\nVui lòng tạo đơn nạp mới bằng /start**", parse_mode="Markdown")
+    # Xóa state của user
+    user_states.pop(user_id, None)
 
-# ===== XỬ LÝ LỆNH /duyet (ADMIN) =====
-def handle_admin_duyet(message):
-    user_id = message.from_user.id
+# ===== XỬ LÝ CALLBACK DUYỆT ĐƠN TỪ ADMIN =====
+@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_duyet_"))
+def handle_admin_duyet_callback(call):
+    user_id = call.from_user.id
     if user_id not in ADMIN_IDS:
-        bot.reply_to(message, "**❌ Bạn không có quyền sử dụng lệnh này.**", parse_mode="Markdown")
+        bot.answer_callback_query(call.id, "❌ Bạn không có quyền duyệt đơn!", show_alert=True)
         return
-
-    parts = message.text.split()
-    if len(parts) < 2:
-        bot.reply_to(message, "**📌 Cú pháp: /duyet <mã đơn>**\nVí dụ: /duyet TGTX247ABC123", parse_mode="Markdown")
-        return
-
-    order_id_input = parts[1].strip()
-    if order_id_input.startswith("#"):
-        order_id_input = order_id_input[1:]
-
-    orders = get_orders()
-    if order_id_input not in orders:
-        bot.reply_to(message, f"**❌ Không tìm thấy đơn nạp với mã: {order_id_input}**", parse_mode="Markdown")
-        return
-
-    order = orders[order_id_input]
     
+    order_id = call.data.replace("admin_duyet_", "")
+    process_duyet_order(call.message.chat.id, order_id, call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("admin_huy_"))
+def handle_admin_huy_callback(call):
+    user_id = call.from_user.id
+    if user_id not in ADMIN_IDS:
+        bot.answer_callback_query(call.id, "❌ Bạn không có quyền hủy đơn!", show_alert=True)
+        return
+    
+    order_id = call.data.replace("admin_huy_", "")
+    orders = get_orders()
+    if order_id in orders:
+        orders[order_id]["status"] = "cancelled"
+        orders[order_id]["cancel_time"] = get_vietnam_time().strftime("%Y-%m-%d %H:%M:%S")
+        save_orders(orders)
+        bot.answer_callback_query(call.id, f"✅ Đã hủy đơn #{order_id}", show_alert=True)
+        bot.send_message(call.message.chat.id, f"❌ **Đã hủy đơn #{order_id}**", parse_mode="Markdown")
+
+def process_duyet_order(chat_id, order_id, callback_id=None):
+    """Xử lý duyệt đơn"""
+    orders = get_orders()
+    if order_id not in orders:
+        if callback_id:
+            bot.answer_callback_query(callback_id, f"❌ Không tìm thấy đơn #{order_id}", show_alert=True)
+        return
+    
+    order = orders[order_id]
     if order["status"] != "pending_approval":
         status_text = {
             "created": "chờ xác nhận",
@@ -872,8 +897,8 @@ def handle_admin_duyet(message):
             "approved": "đã duyệt",
             "cancelled": "đã hủy"
         }.get(order["status"], order["status"])
-        
-        bot.reply_to(message, f"**❌ Đơn nạp {order_id_input} không ở trạng thái chờ duyệt**\nTrạng thái hiện tại: {status_text}", parse_mode="Markdown")
+        if callback_id:
+            bot.answer_callback_query(callback_id, f"❌ Đơn ở trạng thái: {status_text}", show_alert=True)
         return
 
     target_user_id = order["user_id"]
@@ -895,7 +920,7 @@ def handle_admin_duyet(message):
             target_user_id,
             f"✅ **ĐƠN NẠP ĐÃ ĐƯỢC DUYỆT**\n"
             f"========================\n"
-            f"🔢 Mã đơn: #{order_id_input}\n"
+            f"🔢 Mã đơn: #{order_id}\n"
             f"💰 Số tiền: +{amount:,} VND\n"
             f"💳 Số dư hiện tại: {user_data['balance']:,} VND\n"
             f"📅 Thời gian duyệt: {order['approved_at']}\n"
@@ -907,13 +932,29 @@ def handle_admin_duyet(message):
         print(f"❌ Không thể gửi thông báo cho user {target_user_id}: {e}")
 
     # Thông báo cho admin đã duyệt
-    bot.reply_to(
-        message, 
-        f"✅ **Đã duyệt đơn {order_id_input}**\n"
-        f"💰 Đã cộng {amount:,} VND cho user {target_user_id}\n"
-        f"💳 Số dư mới: {user_data['balance']:,} VND",
-        parse_mode="Markdown"
-    )
+    msg = f"✅ **Đã duyệt đơn {order_id}**\n💰 Đã cộng {amount:,} VND cho user {target_user_id}\n💳 Số dư mới: {user_data['balance']:,} VND"
+    bot.send_message(chat_id, msg, parse_mode="Markdown")
+    
+    if callback_id:
+        bot.answer_callback_query(callback_id, f"✅ Đã duyệt đơn #{order_id}", show_alert=True)
+
+# ===== XỬ LÝ LỆNH /duyet (ADMIN) =====
+def handle_admin_duyet(message):
+    user_id = message.from_user.id
+    if user_id not in ADMIN_IDS:
+        bot.reply_to(message, "**❌ Bạn không có quyền sử dụng lệnh này.**", parse_mode="Markdown")
+        return
+
+    parts = message.text.split()
+    if len(parts) < 2:
+        bot.reply_to(message, "**📌 Cú pháp: /duyet <mã đơn>**\nVí dụ: /duyet TGTX247ABC123", parse_mode="Markdown")
+        return
+
+    order_id_input = parts[1].strip()
+    if order_id_input.startswith("#"):
+        order_id_input = order_id_input[1:]
+
+    process_duyet_order(message.chat.id, order_id_input)
 
 # ===== CHẠY BOT =====
 if __name__ == "__main__":
@@ -934,6 +975,8 @@ if __name__ == "__main__":
         print(f"✅ Đã tạo file {ORDERS_FILE}")
     
     print("✅ Bot sẵn sàng hoạt động!")
+    print(f"👥 Admin IDs: {ADMIN_IDS}")
+    
     try:
         bot.infinity_polling(skip_pending=True)
     except Exception as e:
