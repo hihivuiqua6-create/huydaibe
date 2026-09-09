@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToolGameTX 247 - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .header h1 span {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-card .label {
+            color: #888;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .stat-card.pending .number {
+            color: #f39c12;
+        }
+        
+        .stat-card.balance .number {
+            color: #27ae60;
+        }
+        
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn-export {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .btn-import {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .btn-reset {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: #f8f9fa;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        
+        .status-created {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status-awaiting_receipt {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status-pending_approval {
+            background: #fce4ec;
+            color: #c62828;
+        }
+        
+        .status-approved {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-cancelled {
+            background: #f5f5f5;
+            color: #616161;
+        }
+        
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        
+        .btn-sm:hover {
+            opacity: 0.8;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+        }
+        
+        .file-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .file-input-wrapper input[type="file"] {
+            flex: 1;
+            padding: 10px;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        
+        .file-input-wrapper input[type="file"]:hover {
+            border-color: #667eea;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast-success {
+            background: #27ae60;
+        }
+        
+        .toast-error {
+            background: #e74c3c;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎮 <span>ToolGameTX 247</span> - Admin Panel</h1>
+            <p style="color: #888; margin-top: 10px;">Quản lý dữ liệu người dùng và đơn hàng</p>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="number">{{ total_users }}</div>
+                <div class="label">👤 Tổng người dùng</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">{{ total_orders }}</div>
+                <div class="label">📦 Tổng đơn hàng</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="number">{{ pending_orders }}</div>
+                <div class="label">⏳ Đơn chờ duyệt</div>
+            </div>
+            <div class="stat-card balance">
+                <div class="number">{{ "{:,.0f}".format(total_balance) }}</div>
+                <div class="label">💰 Tổng số dư (VND)</div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="actions">
+            <button class="btn btn-export" onclick="exportData()">
+                📤 Export Data
+            </button>
+            <div class="file-input-wrapper">
+                <input type="file" id="importFile" accept=".json">
+                <button class="btn btn-import" onclick="importData()">
+                    📥 Import Data
+                </button>
+            </div>
+            <button class="btn btn-reset" onclick="resetData()">
+                🔄 Reset Data
+            </button>
+        </div>
+        
+        <!-- Users Table -->
+        <div class="card">
+            <h2>👤 Danh sách người dùng</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên</th>
+                            <th>Username</th>
+                            <th>Số dư</th>
+                            <th>VIP</th>
+                            <th>Key hết hạn</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_id, user in users.items() %}
+                        <tr>
+                            <td>{{ user_id }}</td>
+                            <td>{{ user.fullname }}</td>
+                            <td>@{{ user.username }}</td>
+                            <td>{{ "{:,.0f}".format(user.balance) }} VND</td>
+                            <td>{% if user.vip %}✅{% else %}❌{% endif %}</td>
+                            <td>{{ user.key_expiry if user.key_expiry else 'Chưa có' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Orders Table -->
+        <div class="card">
+            <h2>📦 Danh sách đơn hàng</h2>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã đơn</th>
+                            <th>User ID</th>
+                            <th>Số tiền</th>
+                            <th>Trạng thái</th>
+                            <th>Ngày tạo</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order_id, order in orders.items() %}
+                        <tr>
+                            <td><strong>{{ order_id }}</strong></td>
+                            <td>{{ order.user_id }}</td>
+                            <td>{{ "{:,.0f}".format(order.amount) }} VND</td>
+                            <td>
+                                <span class="status-badge status-{{ order.status }}">
+                                    {{ order.status }}
+                                </span>
+                            </td>
+                            <td>{{ order.created_at }}</td>
+                            <td>
+                                {% if order.status == 'pending_approval' %}
+                                <button class="btn-sm btn-success" onclick="duyetOrder('{{ order_id }}')">
+                                    ✅ Duyệt
+                                </button>
+                                {% endif %}
+                                <button class="btn-sm btn-delete" onclick="deleteOrder('{{ order_id }}')">
+                                    🗑️ Xóa
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Export data
+        function exportData() {
+            window.location.href = '/export';
+            showToast('success', '📤 Đang xuất dữ liệu...');
+        }
+        
+        // Import data
+        async function importData() {
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showToast('error', '❌ Vui lòng chọn file JSON!');
+                return;
+            }
+            
+            if (!file.name.endsWith('.json')) {
+                showToast('error', '❌ File phải có định dạng .json!');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('success', '✅ ' + result.message);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('error', '❌ ' + result.error);
+                }
+            } catch (error) {
+                showToast('error', '❌ Lỗi: ' + error.message);
+            }
+        }
+        
+        // Reset data
+        async function resetData() {
+            if (!confirm('⚠️ Bạn có chắc chắn muốn reset toàn bộ dữ liệu?')) {
+                return;
+            }
+            
+            if (!confirm('⚠️ Dữ liệu sẽ bị xóa vĩnh viễn! Bạn có chắc?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/reset_data', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('success', '✅ ' + result.message);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('error', '❌ ' + result.error);
+                }
+            } catch (error) {
+                showToast('error', '❌ Lỗi: ' + error.message);
+            }
+        }
+        
+        // Delete order
+        async function deleteOrder(orderId) {
+            if (!confirm('⚠️ Bạn có chắc muốn xóa đơn hàng ' + orderId + '?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/delete_order/' + orderId, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('success', '✅ ' + result.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('error', '❌ ' + result.error);
+                }
+            } catch (error) {
+                showToast('error', '❌ Lỗi: ' + error.message);
+            }
+        }
+        
+        // Duyệt order (gọi API)
+        async function duyetOrder(orderId) {
+            if (!confirm('✅ Duyệt đơn hàng ' + orderId + '?')) {
+                return;
+            }
+            
+            try {
+                // Gửi yêu cầu duyệt qua API
+                const response = await fetch('/duyet_order/' + orderId, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('success', '✅ ' + result.message);
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('error', '❌ ' + result.error);
+                }
+            } catch (error) {
+                showToast('error', '❌ Lỗi: ' + error.message);
+            }
+        }
+        
+        // Toast notification
+        function showToast(type, message) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
